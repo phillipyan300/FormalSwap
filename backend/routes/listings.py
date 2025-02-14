@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from flask_login import login_required
 from models import Listing, db
+from middleware.auth import require_auth
 
 listings = Blueprint('listings', __name__)
 
@@ -25,4 +26,22 @@ def confirm_match(listing_id):
         # Send confirmation emails to both parties
         
     db.session.commit()
+    return jsonify(listing.to_dict())
+
+@listings.route('/api/listings', methods=['POST'])
+@require_auth  # This decorator protects the route
+def create_listing():
+    # The user is now available in g.user
+    user = g.user
+    
+    # Create listing for this user
+    listing = Listing(
+        host_id=user.id,
+        date=request.json.get('date'),
+        capacity=request.json.get('capacity')
+    )
+    
+    db.session.add(listing)
+    db.session.commit()
+    
     return jsonify(listing.to_dict()) 

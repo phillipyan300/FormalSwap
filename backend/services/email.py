@@ -1,17 +1,28 @@
-from flask_mail import Mail, Message
-from app import app
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 from os import environ
 
-# Railway can store these securely
-app.config['MAIL_SERVER'] = 'smtp.sendgrid.net'
-app.config['MAIL_USERNAME'] = 'apikey'
-app.config['MAIL_PASSWORD'] = environ.get('SENDGRID_API_KEY')
-
-mail = Mail(app)
-
-def send_verification_email(user_email, token):
-    msg = Message('Verify your FormSwap account',
-                 sender='noreply@formswap.com',
-                 recipients=[user_email])
-    msg.body = f'Click here to verify: {verification_link}'
-    mail.send(msg) 
+def send_verification_email(user_email: str, code: str):
+    if environ.get('FLASK_ENV') == 'development':
+        print(f"Development mode: Verification code for {user_email} is {code}")
+        return True
+    else:
+        # Use SendGrid in production
+        message = Mail(
+            from_email='noreply@formswap.com',  # You'll need to verify this domain
+            to_emails=user_email,
+            subject='Verify your FormSwap account',
+            html_content=f'''
+                <h1>Welcome to FormSwap!</h1>
+                <p>Your verification code is: <strong>{code}</strong></p>
+                <p>This code will expire in 10 minutes.</p>
+            '''
+        )
+        
+        try:
+            sg = SendGridAPIClient(environ.get('SENDGRID_API_KEY'))
+            response = sg.send(message)
+            return True
+        except Exception as e:
+            print(f"Error sending email: {e}")
+            return False 
